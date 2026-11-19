@@ -172,3 +172,42 @@ button:disabled {
         grid-template-columns: 1fr;
     }
 }
+
+
+/* Context-aware, one-click demo commands. */
+.suggestion-heading { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 14px; }
+.suggestion-heading h3 { margin: 8px 0 10px; }
+.shuffle-btn { background: transparent; color: #2563eb; padding: 6px 4px; font-size: 12px; }
+.shuffle-btn:hover:not(:disabled) { background: #eff6ff; }
+.command-suggestions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.suggestion-card { text-align: left; padding: 11px; background: #f8fafc; color: #243044; border: 1px solid #dbe4f0; border-radius: 9px; font-size: 12px; font-weight: 500; line-height: 1.45; overflow-wrap: anywhere; }
+.suggestion-card:hover:not(:disabled) { background: #eff6ff; border-color: #93c5fd; color: #1d4ed8; }
+.suggestion-card:focus-visible { outline: 2px solid #2563eb; outline-offset: 2px; }
+@media (max-width: 480px) { .command-suggestions { grid-template-columns: 1fr; } }
+
+/* Compact CAD-like toolbar, on the right edge of the canvas. */
+.canvas-workarea { position: relative; }
+.draw-tools { position: absolute; z-index: 2; right: 10px; top: 10px; display: flex; flex-direction: column; gap: 5px; padding: 6px; background: rgba(255,255,255,.96); border: 1px solid #dbe4f0; border-radius: 10px; box-shadow: 0 2px 12px #18263c1a; }
+.draw-tools .draw-tool { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 49px; min-height: 42px; padding: 3px; gap: 1px; font-size: 21px; line-height: 1; color: #334155; background: transparent; }
+.draw-tool span { font-size: 10px; line-height: 1.2; font-weight: 500; }
+.draw-tools .draw-tool.active { background: #dbeafe; color: #1d4ed8; }
+.draw-tools .draw-tool:hover { background: #eff6ff; color: #1d4ed8; }
+#cad-canvas.drawing { cursor: crosshair; touch-action: none; }
+#cad-canvas { cursor: default; }
+
+.snap-control { display: flex; flex-direction: column; align-items: center; gap: 3px; margin: 3px 0 0; padding: 5px 0 2px; border-top: 1px solid #dbe4f0; font-size: 11px; font-weight: 600; color: #334155; cursor: pointer; }
+.snap-control input { width: 16px; height: 16px; margin: 0; accent-color: #2563eb; cursor: pointer; }
+
+/* Traditional CAD selection and property editing. */
+#cad-canvas:not(.drawing) { cursor: pointer; touch-action: none; }
+.selection-panel { margin-top: 12px; padding: 14px; border: 1px solid #dbe4f0; border-radius: 10px; background: #f8fafc; }
+.selection-panel[hidden], #length-field[hidden] { display: none; }
+.selection-title, .selection-actions { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.selection-fields { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 10px; margin: 12px 0; }
+.selection-fields label { font-size: 12px; margin: 0; }
+.selection-fields input, .selection-fields select { width: 100%; margin-top: 5px; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; background: white; }
+.selection-actions { justify-content: flex-start; flex-wrap: wrap; }
+.selection-actions button { padding: 8px 11px; }
+.selection-panel .danger-action { background: #b91c1c; }
+.selection-panel .muted-action { color: #475569; background: transparent; padding: 6px; }
+@media(max-width:540px) { .selection-fields { grid-template-columns: 1fr; } }

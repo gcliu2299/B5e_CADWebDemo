@@ -27,6 +27,12 @@
                 </button>
             </form>
 
+            <div class="suggestion-heading">
+                <h3>Try a Command</h3>
+                <button id="shuffle-suggestions" type="button" class="shuffle-btn">↻ New Examples</button>
+            </div>
+            <div id="command-suggestions" class="command-suggestions" aria-label="Suggested CAD commands"></div>
+
             <h3>Predicted JSON Command</h3>
             <textarea id="prediction-output" rows="8" spellcheck="false">No prediction yet.</textarea>
 
@@ -52,9 +58,28 @@
                 <h2>Interactive 2D Canvas</h2>
                 <span id="object-count">0 Objects</span>
             </div>
-            <canvas id="cad-canvas" width="800" height="600"></canvas>
+            <div class="canvas-workarea">
+                <div class="draw-tools" role="toolbar" aria-label="Manual drawing tools">
+                    <button type="button" class="draw-tool active" data-tool="select" title="Select / cancel drawing">↖<span>Select</span></button>
+                    <button type="button" class="draw-tool" data-tool="line" title="Draw line">╱<span>Line</span></button>
+                    <button type="button" class="draw-tool" data-tool="rectangle" title="Draw rectangle">▭<span>Rect</span></button>
+                    <button type="button" class="draw-tool" data-tool="circle" title="Draw circle">◯<span>Circle</span></button>
+                    <button type="button" class="draw-tool" data-tool="point" title="Place point">•<span>Point</span></button>
+                    <label class="snap-control" title="Snap near grid intersections"><input type="checkbox" id="grid-snap" checked>Snap</label>
+                </div>
+                <canvas id="cad-canvas" width="800" height="600"></canvas>
+            </div>
+            <div class="selection-panel" id="selection-panel" hidden>
+                <div class="selection-title"><strong id="selected-label">Selected object</strong><button type="button" id="deselect-btn" class="muted-action">Deselect</button></div>
+                <div class="selection-fields">
+                    <label>Color <select id="object-color"><option>black</option><option>red</option><option>green</option><option>blue</option><option>yellow</option><option>cyan</option><option>magenta</option><option>white</option></select></label>
+                    <label>Stroke width <input id="object-width" type="number" min="0.1" max="30" step="0.5" value="1"></label>
+                    <label id="length-field" hidden>Line length <input id="object-length" type="number" min="0.01" step="0.1"></label>
+                </div>
+                <div class="selection-actions"><button type="button" id="apply-properties-btn">Apply properties</button><button type="button" id="duplicate-selected-btn">Duplicate</button><button type="button" id="delete-selected-btn" class="danger-action">Delete</button></div>
+            </div>
             <p class="canvas-note">
-                Shapes are rendered from the Python CAD Executor state.
+                Select and drag a shape to move it; press Delete to remove it. Draw with click/drag (Point: click). Snap aligns nearby grid intersections. All shapes can be edited with natural-language commands.
             </p>
         </section>
     </div>
