@@ -27,3 +27,10 @@ evaluation*.json
 # OS files
 .DS_Store
 Thumbs.db
+
+# Model training and visualization outputs
+cad_model_visualization.pt
+cad_model_visualization.loss.json
+cad_splits_visualization.json
+training_history.pt
+model_robustness_report.json

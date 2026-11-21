@@ -5,12 +5,15 @@ const predictBtn = document.getElementById("predict-btn");
 const executeBtn = document.getElementById("execute-btn");
 const predictionOutput = document.getElementById("prediction-output");
 const executionResult = document.getElementById("execution-result");
+const mismatchNotice = document.getElementById("suggestion-mismatch");
+function setMismatchNotice(message = "") { mismatchNotice.textContent = message; mismatchNotice.hidden = !message; }
 const historyPanel = document.getElementById("history");
 const objectCount = document.getElementById("object-count");
 const canvas = document.getElementById("cad-canvas");
 const ctx = canvas.getContext("2d");
 
 let pendingCommand = null;
+let pendingTexts = [];
 let objects = [];
 let viewport = null;
 let tool = "select";
@@ -293,33 +296,54 @@ async function refreshState() {
     makeSuggestions();
 }
 
+// Preserve sentence punctuation because the model was trained on full sentences.
+// Never split decimal numbers or commas inside coordinates.
+function splitCommands(text) {
+    return text.replace(/\b(?:and\s+then|then)\b\s*[,.:;]?/gi, ";")
+        .split(/(?<=\.)\s+(?=[A-Za-z])|[;\n]+/)
+        .map(part => part.trim()).filter(Boolean);
+}
+
 form.addEventListener("submit", async (event) => {
     event.preventDefault();
-    if (!input.value.trim()) return;
-
-    const activeSuggestion = selectedSuggestion && input.value.trim() === selectedSuggestion.text ? selectedSuggestion : null;
+    const sentences = splitCommands(input.value.trim());
+    if (!sentences.length) return;
+    const activeSuggestion = selectedSuggestion && sentences.length === 1 &&
+        input.value.trim() === selectedSuggestion.text ? selectedSuggestion : null;
     const token = ++requestToken;
     pendingCommand = null;
+    pendingTexts = [];
+    setMismatchNotice();
     executeBtn.disabled = true;
     predictBtn.disabled = true;
     suggestionsPanel.querySelectorAll("button").forEach(card => { card.disabled = true; });
-    predictionOutput.value = "Generating command...";
-
+    predictionOutput.value = `Recognizing ${sentences.length} command(s)...`;
+    executionResult.textContent = `Split into ${sentences.length} command(s):\n` + sentences.map((x,i) => `${i+1}. ${x}`).join("\n");
     try {
-        const data = await api("/predict", { text: input.value.trim() });
-        if (token !== requestToken) return;
-        pendingCommand = data.command;
-        predictionOutput.value = JSON.stringify(pendingCommand, null, 2);
-        if (activeSuggestion && !sameCommand(pendingCommand, activeSuggestion.command)) {
-            executionResult.textContent = "Model output differs from this example. Execution blocked to protect the demo.";
-            pendingCommand = null;
-            executeBtn.disabled = true;
-        } else {
-            executionResult.textContent = activeSuggestion ? "Prediction verified against suggested command." : "Prediction ready for review.";
-            executeBtn.disabled = false;
+        const commands = [];
+        for (let i = 0; i < sentences.length; i++) {
+            predictionOutput.value = `${i + 1}/${sentences.length}: ${sentences[i]}`;
+            let data;
+            try {
+                data = await api("/predict", {text: sentences[i]});
+            } catch (error) {
+                throw new Error(`Command ${i + 1} (${sentences[i]}): ${error.message}`);
+            }
+            if (token !== requestToken) return;
+            if (activeSuggestion && !sameCommand(data.command, activeSuggestion.command))
+                setMismatchNotice("Prediction differs from the suggested command.");
+            commands.push(data.command);
         }
+        pendingCommand = commands;
+        pendingTexts = sentences;
+        predictionOutput.value = JSON.stringify(commands.length === 1 ? commands[0] : commands, null, 2);
+        executionResult.textContent = `${commands.length} command(s) ready. Review the JSON before executing. Commands run in order.`;
+        executeBtn.disabled = false;
     } catch (error) {
+        pendingCommand = null;
+        setMismatchNotice();
         predictionOutput.value = `Prediction error: ${error.message}`;
+        executionResult.textContent = "Prediction failed. No commands executed.";
     } finally {
         predictBtn.disabled = false;
         suggestionsPanel.querySelectorAll("button").forEach(card => { card.disabled = false; });
@@ -328,52 +352,48 @@ form.addEventListener("submit", async (event) => {
 
 executeBtn.addEventListener("click", async () => {
     if (!pendingCommand) return;
-
-    let editedCommand;
-
-    try {
-        editedCommand = JSON.parse(predictionOutput.value);
-    } catch (error) {
-        executionResult.textContent = "Invalid JSON: " + error.message;
-        return;
-    }
-
-    if (!editedCommand || typeof editedCommand !== "object"
-        || Array.isArray(editedCommand)
-        || typeof editedCommand.command !== "string") {
-        executionResult.textContent = "Invalid CAD command.";
-        return;
-    }
-
-    if (selectedSuggestion && !sameCommand(editedCommand, selectedSuggestion.command)) {
-        executionResult.textContent = "Suggested command was changed or predicted incorrectly. Execution blocked.";
+    let edited;
+    try { edited = JSON.parse(predictionOutput.value); }
+    catch (error) { executionResult.textContent = "Invalid JSON: " + error.message; return; }
+    const commands = Array.isArray(edited) ? edited : [edited];
+    if (commands.length !== pendingCommand.length || commands.some(c => !c || typeof c !== "object" || Array.isArray(c) || typeof c.command !== "string")) {
+        executionResult.textContent = "Invalid command list.";
         return;
     }
     executeBtn.disabled = true;
-
+    predictBtn.disabled = true;
     try {
-        if (selectedSuggestion) {
-            await refreshState();
-            if (!objectStillMatches(selectedSuggestion)) throw new Error("Target object changed. Please choose another example.");
+        // Recheck existing objects before executing, in case another interaction changed them.
+        await refreshState();
+        let count = 0;
+        for (let i = 0; i < commands.length; i++) {
+            const c = commands[i];
+            // Explicit IDs in multi-command mode must already exist, or be created earlier in this batch.
+            if (Object.hasOwn(c, "id") && !objects.some(o => o.id === c.id))
+                throw new Error(`Command ${i+1}: object #${c.id} does not exist.`);
+            const data = await api("/execute", {command: c});
+            objects = data.objects || [];
+            count++;
+            const entry = document.createElement("div");
+            entry.textContent = `${pendingTexts[i] || c.command} → ${typeof data.result === "string" ? data.result : JSON.stringify(data.result)}`;
+            historyPanel.prepend(entry);
+            if (!objects.some(o => o.id === selectedObjectId)) selectedObjectId = null;
+            drawCanvas();
+            updateSelectionPanel();
         }
-        const data = await api("/execute", { command: editedCommand });
-        executionResult.textContent = typeof data.result === "string"
-            ? data.result : JSON.stringify(data.result);
-
-        const entry = document.createElement("div");
-        entry.textContent = `${input.value.trim()} → ${executionResult.textContent}`;
-        historyPanel.prepend(entry);
-
-        objects = data.objects || [];
-        if (!objects.some(o => o.id === selectedObjectId)) selectedObjectId = null;
-        drawCanvas();
-        updateSelectionPanel();
-        makeSuggestions();
+        executionResult.textContent = `${count} command(s) executed successfully.`;
         pendingCommand = null;
+        pendingTexts = [];
         selectedSuggestion = null;
+        setMismatchNotice();
+        makeSuggestions();
     } catch (error) {
-        executionResult.textContent = `Execution error: ${error.message}`;
-        executeBtn.disabled = false;
+        executionResult.textContent = `Execution stopped: ${error.message}. Earlier successful commands were kept; use Undo to reverse them.`;
+        await refreshState();
+        pendingCommand = null;
+    } finally {
+        predictBtn.disabled = false;
+        executeBtn.disabled = true;
     }
 });
 
@@ -613,6 +633,7 @@ canvas.addEventListener("pointerup", async event => {
         // A hand-drawn shape changes the context of generated command suggestions.
         selectedSuggestion=null; pendingCommand=null; executeBtn.disabled=true;
         predictionOutput.value="No prediction yet.";
+        setMismatchNotice();
         const entry=document.createElement("div");
         entry.textContent=`Manual ${command.command.replace("CREATE_", "").toLowerCase()} → ${data.result}`;
         historyPanel.prepend(entry);

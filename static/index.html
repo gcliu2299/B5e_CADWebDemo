@@ -20,7 +20,7 @@
             <form id="command-form">
                 <label for="command-input">Natural Language Command</label>
                 <textarea id="command-input"
-                    placeholder="Draw a line from (0,0) to (6,0)."
+                    placeholder="Draw a line from (0,0) to (6,0). Then create a circle at (3,3) with radius 2."
                     rows="3"></textarea>
                 <button type="submit" id="predict-btn">
                     Generate Command
@@ -34,7 +34,8 @@
             <div id="command-suggestions" class="command-suggestions" aria-label="Suggested CAD commands"></div>
 
             <h3>Predicted JSON Command</h3>
-            <textarea id="prediction-output" rows="8" spellcheck="false">No prediction yet.</textarea>
+            <textarea id="prediction-output" rows="5" spellcheck="false">No prediction yet.</textarea>
+            <div id="suggestion-mismatch" role="status" hidden></div>
 
             <button id="execute-btn" disabled>
                 Confirm & Execute
